@@ -1,0 +1,58 @@
+list_of_profiles:
+  - name: "green"
+    path: "data/profiles/green_tripdata_2025-01_sample_10000_profile.json"
+  - name: "yellow"
+    path: "data/profiles/yellow_tripdata_2025-01_sample_10000_profile.json"
+  - name: "hvfhs"
+    path: "data/profiles/hvfhs_tripdata_2025-01_sample_10000_profile.json"
+
+list_of_data_dictionaries:
+  - name: "green"
+    path: "docs/model_sources/data_dictionary_trip_records_green.json"
+  - name: "yellow"
+    path: "docs/model_sources/data_dictionary_trip_records_yellow.json"
+  - name: "hvfhs"
+    path: "docs/model_sources/data_dictionary_trip_records_hvfhs.json"
+    
+
+list_of_data_samples:
+  - name: "hvfhs"
+    path: "data/samples/hvfhs_tripdata_2025-01_sample_100.parquet"
+  - name: "green"
+    path: "data/samples/green_tripdata_2025-01_sample_100.parquet"
+  - name: "yellow"
+    path: "data/samples/yellow_tripdata_2025-01_sample_100.parquet"
+
+
+list_of_data_samples_profiles:
+  - name: "hvfhs"
+    path: "data/samples/hvfhs_tripdata_2025-01_sample_10000.parquet"
+  - name: "green"
+    path: "data/samples/green_tripdata_2025-01_sample_10000.parquet"
+  - name: "yellow"
+    path: "data/samples/yellow_tripdata_2025-01_sample_10000.parquet"
+
+list_full_data_samples:
+  - name: "hvfhs"
+    path: "data/full_files/hvfhs_tripdata_2025-01.parquet"
+  - name: "green"
+    path: "data/full_files/green_tripdata_2025-01.parquet"
+  - name: "yellow"
+    path: "data/full_files/yellow_tripdata_2025-01.parquet"
+
+list_of_data_in_codebase:
+  - name: "database_schema.table-name"
+  - name: "another_database.another-table-name"
+  - name: "yet_another_database.yet-another-table-name"
+
+
+data_llm_results_dictionary_generation:
+  path: "data/llm_results/dictionary_llm_results"
+  # path: "data/llm_results/dictionary_llm_results_reasoner"
+
+data_llm_results_profile_generation_base:
+  path: "data/llm_results"
+
+data_llm_results_distance_calculation:
+  path: "data/distance_calculation"
+
