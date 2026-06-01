@@ -218,6 +218,32 @@ poetry.toml
 pyrightconfig.json
 
 ### PythonVanilla ###
+
+### Benchmark and generated data ###
+# Raw benchmark downloads/extractions. These can be restored by
+# `uv run python src/bootstrap_bird_mini_dev.py --update-config`.
+benchmark/bird_mini_dev/*
+!benchmark/bird_mini_dev/bird_mini_dev_bootstrap_summary.md
+
+# Generated BIRD artifacts. Keep config/code/docs in git; regenerate these files
+# from the benchmark when needed.
+data/bird_mini_dev/dictionaries/
+data/bird_mini_dev/samples/
+data/bird_mini_dev/profile_samples/
+data/bird_mini_dev/profiles/
+data/bird_mini_dev/manifest.json
+
+# Large or low-value data files.
+*.csv
+*.parquet
+*.zip
+*.sqlite
+*.sqlite3
+
+# Generated JSON data that is reproducible from the benchmark/script.
+benchmark/**/*.json
+data/**/manifest.json
+data/**/profiles/*.json
 # Byte-compiled / optimized / DLL files
 
 # C extensions
