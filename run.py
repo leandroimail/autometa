@@ -1,9 +1,23 @@
 #!/usr/bin/env python3
-"""Orchestrator for the schema_generator dictionary comparison pipeline."""
+"""Orchestrator for the schema_generator pipeline.
+
+This is the single entry point that wires every step of the pipeline together:
+
+  * ``bootstrap``   - ``src/bootstrap_bird_mini_dev.py``
+  * ``generate``    - ``src/dictionary_generation.py``
+  * ``validate``    - audit parsed LLM JSONs without calling any LLM
+  * ``retry-llm``   - rerun only failed LLM dictionary generations
+  * ``compare``     - ``src/compare_results_dictionary.py``
+  * ``all``         - validate [+retry-llm] + compare
+  * ``pipeline``    - bootstrap -> generate -> all
+
+Every external script is invoked as a subprocess so failures propagate as exit
+codes and there is no need to reimplement its CLI in this file.
+"""
 
 import argparse
+import glob
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -24,8 +38,38 @@ def find_python() -> str:
     return str(venv_python) if venv_python.exists() else sys.executable
 
 
+def _run_subprocess(cmd, **kw) -> int:
+    print(">>>", " ".join(cmd))
+    return subprocess.call(cmd, cwd=PROJECT_ROOT, **kw)
+
+
+def cmd_bootstrap(args) -> int:
+    """Invoke ``src/bootstrap_bird_mini_dev.run`` to materialise BIRD Mini-Dev."""
+    py = find_python()
+    cmd = [py, "src/bootstrap_bird_mini_dev.py"]
+    if args.update_config:
+        cmd.append("--update-config")
+    if args.dataset_url:
+        cmd.extend(["--dataset-url", args.dataset_url])
+    if args.sample_size is not None:
+        cmd.extend(["--sample-size", str(args.sample_size)])
+    if args.profile_sample_size is not None:
+        cmd.extend(["--profile-sample-size", str(args.profile_sample_size)])
+    return _run_subprocess(cmd)
+
+
+def cmd_generate(args) -> int:
+    """Invoke ``src/dictionary_generation.generate_dictionaries``."""
+    py = find_python()
+    cmd = [py, "src/dictionary_generation.py"]
+    if args.retry_errors:
+        cmd.append("--retry-errors")
+    elif args.list_errors:
+        cmd.append("--list-errors")
+    return _run_subprocess(cmd)
+
+
 def cmd_validate(args) -> int:
-    import glob
     cfg = load_config()
     data_llm_dir = PROJECT_ROOT / cfg.get("data_llm_results_dictionary_generation", {}).get("path", "")
     files = sorted(glob.glob(str(data_llm_dir / "**" / "*_parsed.json"), recursive=True))
@@ -64,20 +108,18 @@ def cmd_validate(args) -> int:
 
 def cmd_retry_llm(args) -> int:
     py = find_python()
-    cmd = [py, "-m", "src.dictionary_generation"]
+    cmd = [py, "src/dictionary_generation.py"]
     if args.dry_run:
         cmd.append("--list-errors")
     else:
         cmd.append("--retry-errors")
-    print(">>>", " ".join(cmd))
-    return subprocess.call(cmd, cwd=PROJECT_ROOT)
+    return _run_subprocess(cmd)
 
 
 def cmd_compare(args) -> int:
     py = find_python()
     cmd = [py, "src/compare_results_dictionary.py"]
-    print(">>>", " ".join(cmd))
-    rc = subprocess.call(cmd, cwd=PROJECT_ROOT)
+    rc = _run_subprocess(cmd)
     if rc == 0:
         summary_path = PROJECT_ROOT / "data" / "distance_calculation" / "all_similarities_results.json"
         if summary_path.exists():
@@ -103,21 +145,134 @@ def cmd_all(args) -> int:
     return cmd_compare(args)
 
 
+def cmd_pipeline(args) -> int:
+    """Run the full pipeline: bootstrap -> generate -> validate -> [retry-llm] -> compare."""
+    if args.with_bootstrap:
+        print("=== Step 1/3: bootstrap BIRD Mini-Dev ===")
+        rc = cmd_bootstrap(
+            argparse.Namespace(
+                update_config=True,
+                dataset_url=None,
+                sample_size=None,
+                profile_sample_size=None,
+            )
+        )
+        if rc != 0:
+            return rc
+
+    if args.with_generate:
+        print("=== Step 2/3: generate LLM dictionaries ===")
+        rc = cmd_generate(argparse.Namespace(retry_errors=False, list_errors=False))
+        if rc != 0:
+            return rc
+
+    print("=== Step 3/3: validate, optional retry, compare ===")
+    return cmd_all(argparse.Namespace(with_retry=args.with_retry))
+
+
 def main() -> int:
-    p = argparse.ArgumentParser(prog="run.py", description="Schema generator orchestrator")
+    p = argparse.ArgumentParser(
+        prog="run.py",
+        description="Schema generator orchestrator. Wraps every step of the pipeline.",
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    sub.add_parser("validate", help="Audit LLM result JSONs for errors").set_defaults(func=cmd_validate)
+    bootstrap_p = sub.add_parser(
+        "bootstrap",
+        help="Bootstrap BIRD Mini-Dev dictionaries, samples, and profiles",
+    )
+    bootstrap_p.add_argument(
+        "--update-config",
+        action="store_true",
+        help="Refresh config.yaml with the new BIRD artifacts",
+    )
+    bootstrap_p.add_argument(
+        "--dataset-url",
+        default=None,
+        help="Override the BIRD Mini-Dev download URL",
+    )
+    bootstrap_p.add_argument(
+        "--sample-size",
+        type=int,
+        default=None,
+        help="Rows to include in the prompt sample (default: 100)",
+    )
+    bootstrap_p.add_argument(
+        "--profile-sample-size",
+        type=int,
+        default=None,
+        help="Rows to include in the profiling sample (default: 10000)",
+    )
+    bootstrap_p.set_defaults(func=cmd_bootstrap)
 
-    retry = sub.add_parser("retry-llm", help="Rerun failed LLM dictionary generations")
-    retry.add_argument("--dry-run", action="store_true", help="List targets without calling APIs")
+    generate_p = sub.add_parser(
+        "generate",
+        help="Generate LLM dictionaries for every configured profile",
+    )
+    generate_p.add_argument(
+        "--retry-errors",
+        action="store_true",
+        help="Rerun only the provider/profile combinations that failed validation",
+    )
+    generate_p.add_argument(
+        "--list-errors",
+        action="store_true",
+        help="List the provider/profile combinations that would be rerun",
+    )
+    generate_p.set_defaults(func=cmd_generate)
+
+    sub.add_parser(
+        "validate",
+        help="Audit LLM result JSONs for errors (no API calls)",
+    ).set_defaults(func=cmd_validate)
+
+    retry = sub.add_parser(
+        "retry-llm",
+        help="Rerun failed LLM dictionary generations",
+    )
+    retry.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="List retry targets without calling LLM APIs",
+    )
     retry.set_defaults(func=cmd_retry_llm)
 
-    sub.add_parser("compare", help="Run distance comparison against LLM dictionaries").set_defaults(func=cmd_compare)
+    sub.add_parser(
+        "compare",
+        help="Run distance comparison against LLM dictionaries",
+    ).set_defaults(func=cmd_compare)
 
-    all_p = sub.add_parser("all", help="validate [+retry-llm] + compare")
-    all_p.add_argument("--with-retry", action="store_true", help="Include retry-llm step")
+    all_p = sub.add_parser(
+        "all",
+        help="validate [+retry-llm] + compare",
+    )
+    all_p.add_argument(
+        "--with-retry",
+        action="store_true",
+        help="Include the retry-llm step before compare",
+    )
     all_p.set_defaults(func=cmd_all)
+
+    pipeline_p = sub.add_parser(
+        "pipeline",
+        help="Full pipeline: bootstrap -> generate -> validate -> [retry-llm] -> compare",
+    )
+    pipeline_p.add_argument(
+        "--with-bootstrap",
+        action="store_true",
+        help="Run the bootstrap step first (downloads BIRD Mini-Dev if needed)",
+    )
+    pipeline_p.add_argument(
+        "--with-generate",
+        action="store_true",
+        help="Run the LLM dictionary generation step",
+    )
+    pipeline_p.add_argument(
+        "--with-retry",
+        action="store_true",
+        help="Include retry-llm before compare",
+    )
+    pipeline_p.set_defaults(func=cmd_pipeline)
 
     args = p.parse_args()
     return args.func(args)
