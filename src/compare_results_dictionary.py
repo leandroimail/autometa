@@ -223,31 +223,44 @@ def extract_table_and_model_names(data_llm_dir: str, file_path: str) -> Tuple[st
     """
     try:
         base_name = os.path.basename(file_path)
-        table_name = file_path.replace(data_llm_dir, "").split(os.sep)[2]
-        name_parts = os.path.splitext(base_name)[0].split('_')
+        relative = file_path.replace(data_llm_dir, "").split(os.sep)
+        # data_llm_dir is expected to be the full dictionary_llm_results path.
+        # The table name is the first non-empty path segment after it.
+        table_name = "unknown_table"
+        for segment in relative:
+            if segment:
+                table_name = segment
+                break
 
-        # Assuming format: table_model.json
-        if len(name_parts) >= 2:
-            model_name = name_parts[0]
-        else:
-            model_name = base_name
+        stem = os.path.splitext(base_name)[0]
+        if stem.endswith("_parsed"):
+            stem = stem[: -len("_parsed")]
+        known_prefixes = (
+            "openai_small_",
+            "deepseek_small_",
+            "google_small_",
+        )
+        model_name = stem
+        for prefix in known_prefixes:
+            if stem.startswith(prefix):
+                model_name = stem[len(prefix):]
+                break
 
         return table_name, model_name
     except Exception as e:
         logger.error(f"Error extracting table/model names from file {file_path}: {e}")
         return "unknown_table", "unknown_model"
 
-def main():
+def main(config_path: str = "config.yaml"):
     """
     Main function that orchestrates the entire comparison process.
     """
     try:
         # 1. Load configuration
-        config_path = "config.yaml"
         config = load_config(config_path)
 
         # Extract directory paths from configuration
-        data_llm_dir = config.get("data_llm_results_profile_generation_base", {}).get("path", "")
+        data_llm_dir = config.get("data_llm_results_dictionary_generation", {}).get("path", "")
         baseline_dicts_config = config.get("list_of_data_dictionaries", [])
 
         # Extract the path to save the comparison results
@@ -291,13 +304,21 @@ def main():
 
         logger.info("Loading LLM dictionaries...")
         llm_dicts = {}
+        skipped_errors = 0
         for file_path in llm_files:
             data = load_data_dictionary(file_path)
-            if data:
-                table_name, model_name = extract_table_and_model_names(data_llm_dir, file_path)
-                if table_name not in llm_dicts:
-                    llm_dicts[table_name] = {}
-                llm_dicts[table_name][model_name] = data
+            if not data:
+                continue
+            if isinstance(data, dict) and "error" in data:
+                skipped_errors += 1
+                logger.warning(f"Skipping {file_path}: contains 'error' key (LLM rate-limit/parse failure)")
+                continue
+            table_name, model_name = extract_table_and_model_names(data_llm_dir, file_path)
+            if table_name not in llm_dicts:
+                llm_dicts[table_name] = {}
+            llm_dicts[table_name][model_name] = data
+        if skipped_errors:
+            logger.info(f"Skipped {skipped_errors} LLM result file(s) containing errors.")
 
         # 4. Initialize embeddings model
         logger.info("Initializing embeddings model...")
