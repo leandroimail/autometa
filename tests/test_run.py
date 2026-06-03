@@ -248,9 +248,17 @@ def test_cmd_validate_handles_missing_config_dir(tmp_path, monkeypatch, capsys):
 def test_cmd_compare_prints_summary_on_success(tmp_path, monkeypatch, capsys):
     summary = {
         "results": {"tab1": {}, "tab2": {}},
-        "average_by_model": {
-            "deepseek-v4-flash": 0.61,
-            "gpt-5.4-mini": 0.65,
+        "metrics_by_model": {
+            "deepseek-v4-flash": {
+                "mean": 0.61, "std": 0.05, "q25": 0.5, "median": 0.6,
+                "q75": 0.7, "d90": 0.8, "d99": 0.9, "min": 0.1, "max": 0.95,
+                "count": 20,
+            },
+            "gpt-5.4-mini": {
+                "mean": 0.65, "std": 0.04, "q25": 0.55, "median": 0.65,
+                "q75": 0.75, "d90": 0.85, "d99": 0.92, "min": 0.2, "max": 0.97,
+                "count": 20,
+            },
         },
     }
     out_dir = tmp_path / "data" / "distance_calculation"
@@ -265,8 +273,10 @@ def test_cmd_compare_prints_summary_on_success(tmp_path, monkeypatch, capsys):
     captured = capsys.readouterr()
     assert rc == 0
     assert "Tables: 2" in captured.out
-    assert "deepseek-v4-flash: 0.6100" in captured.out
-    assert "gpt-5.4-mini: 0.6500" in captured.out
+    assert "deepseek-v4-flash" in captured.out
+    assert "mean=0.6100" in captured.out
+    assert "gpt-5.4-mini" in captured.out
+    assert "mean=0.6500" in captured.out
 
 
 def test_cmd_compare_skips_summary_when_subprocess_fails(tmp_path, monkeypatch, capsys):
@@ -293,8 +303,67 @@ def test_cmd_compare_skips_summary_when_file_missing(tmp_path, monkeypatch, caps
 
 
 # ---------------------------------------------------------------------------
-# cmd_retry_llm
+# cmd_metrics
 # ---------------------------------------------------------------------------
+
+
+def test_cmd_metrics_prints_metrics_when_summary_exists(tmp_path, monkeypatch, capsys):
+    summary = {
+        "results": {},
+        "metrics_by_model": {
+            "deepseek-v4-flash": {
+                "mean": 0.61, "std": 0.05, "q25": 0.5, "median": 0.6,
+                "q75": 0.7, "d90": 0.8, "d99": 0.9, "min": 0.1, "max": 0.95,
+                "count": 20,
+            },
+        },
+    }
+    out_dir = tmp_path / "data" / "distance_calculation"
+    out_dir.mkdir(parents=True)
+    (out_dir / "all_similarities_results.json").write_text(json.dumps(summary))
+    monkeypatch.setattr(run, "PROJECT_ROOT", tmp_path)
+
+    rc = run.cmd_metrics(argparse.Namespace())
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert "=== Metrics by model ===" in captured.out
+    assert "deepseek-v4-flash" in captured.out
+    assert "mean=0.6100" in captured.out
+    assert "median=0.6000" in captured.out
+    assert "n=20" in captured.out
+
+
+def test_cmd_metrics_returns_error_when_summary_missing(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(run, "PROJECT_ROOT", tmp_path)
+
+    rc = run.cmd_metrics(argparse.Namespace())
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert "Summary not found" in captured.out
+
+
+def test_cmd_metrics_raises_on_malformed_summary(tmp_path, monkeypatch):
+    out_dir = tmp_path / "data" / "distance_calculation"
+    out_dir.mkdir(parents=True)
+    (out_dir / "all_similarities_results.json").write_text("{not valid")
+    monkeypatch.setattr(run, "PROJECT_ROOT", tmp_path)
+
+    with pytest.raises(json.JSONDecodeError):
+        run.cmd_metrics(argparse.Namespace())
+
+
+def test_main_dispatches_metrics(monkeypatch):
+    called = {}
+    monkeypatch.setattr(
+        run, "cmd_metrics", lambda args: (called.setdefault("metrics", True), 0)[1]
+    )
+    monkeypatch.setattr("sys.argv", ["run.py", "metrics"])
+    rc = run.main()
+    assert rc == 0
+    assert called.get("metrics") is True
+
+
+
 
 
 def test_cmd_retry_llm_dry_run_uses_list_errors(monkeypatch):

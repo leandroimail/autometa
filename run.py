@@ -8,6 +8,7 @@ This is the single entry point that wires every step of the pipeline together:
   * ``validate``    - audit parsed LLM JSONs without calling any LLM
   * ``retry-llm``   - rerun only failed LLM dictionary generations
   * ``compare``     - ``src/compare_results_dictionary.py``
+  * ``metrics``     - print the consolidated metrics summary
   * ``all``         - validate [+retry-llm] + compare
   * ``pipeline``    - bootstrap -> generate -> all
 
@@ -123,15 +124,51 @@ def cmd_compare(args) -> int:
     if rc == 0:
         summary_path = PROJECT_ROOT / "data" / "distance_calculation" / "all_similarities_results.json"
         if summary_path.exists():
-            with open(summary_path) as f:
+            with open(summary_path, encoding="utf-8") as f:
                 d = json.load(f)
             print("\n=== Summary ===")
             print(f"Tables: {len(d.get('results', {}))}")
-            avg = d.get("average_by_model", {})
-            print(f"Models ({len(avg)}): {sorted(avg.keys())}")
-            for m, s in sorted(avg.items()):
-                print(f"  {m}: {s:.4f}")
+            metrics = d.get("metrics_by_model", {})
+            print(f"Models ({len(metrics)}): {sorted(metrics.keys())}")
+            for m, s in sorted(metrics.items()):
+                if isinstance(s, dict) and "mean" in s:
+                    print(
+                        f"  {m}: mean={s['mean']:.4f} "
+                        f"std={s.get('std', 0):.4f} "
+                        f"median={s.get('median', 0):.4f} "
+                        f"min={s.get('min', 0):.4f} "
+                        f"max={s.get('max', 0):.4f}"
+                    )
+                else:
+                    print(f"  {m}: {s}")
     return rc
+
+
+def cmd_metrics(args) -> int:
+    """Print the consolidated metrics summary without recomputing distances."""
+    summary_path = PROJECT_ROOT / "data" / "distance_calculation" / "all_similarities_results.json"
+    if not summary_path.exists():
+        print(f"Summary not found at {summary_path}. Run 'compare' first.")
+        return 1
+
+    with open(summary_path, encoding="utf-8") as f:
+        d = json.load(f)
+
+    print("=== Metrics by model ===")
+    metrics_by_model = d.get("metrics_by_model", {})
+    if not metrics_by_model:
+        print("(no metrics_by_model entry in summary)")
+    for model_name, metrics in sorted(metrics_by_model.items()):
+        if not isinstance(metrics, dict):
+            print(f"  {model_name}: {metrics}")
+            continue
+        ordered_keys = ["mean", "std", "q25", "median", "q75", "d90", "d99", "min", "max", "count"]
+        parts = [f"{k}={metrics[k]:.4f}" for k in ordered_keys if k in metrics and k != "count"]
+        if "count" in metrics:
+            parts.append(f"n={metrics['count']}")
+        print(f"  {model_name}: " + " ".join(parts))
+
+    return 0
 
 
 def cmd_all(args) -> int:
@@ -241,6 +278,11 @@ def main() -> int:
         "compare",
         help="Run distance comparison against LLM dictionaries",
     ).set_defaults(func=cmd_compare)
+
+    sub.add_parser(
+        "metrics",
+        help="Print the consolidated metrics summary from all_similarities_results.json",
+    ).set_defaults(func=cmd_metrics)
 
     all_p = sub.add_parser(
         "all",
