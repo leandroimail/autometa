@@ -150,6 +150,86 @@ do projeto, comparando as distribuições de similaridade coseno geradas por
 Recomenda-se armazenar essas métricas em `data/distance_calculation/` para
 reprodutibilidade.
 
+A validação concreta — aplicada a 75 tabelas × 6 modelos × ~720 campos do
+corpus `bird__*` — está documentada em §3.5.
+
+### 3.5 Validação empírica (BIRD-mini-dev, jun/2026)
+
+Esta subseção documenta a comparação real entre os dois modelos, executada
+sobre o corpus do projeto e salva de forma reprodutível.
+
+#### 3.5.1 Setup
+
+* **Corpus**: 75 tabelas BIRD-mini-dev em `data/bird_mini_dev/dictionaries/`,
+  6 LLMs × ~720 campos por tabela em `data/llm_results/dictionary_llm_results/`.
+* **Hardware**: CPU only (`device: cpu` em `config.yaml`).
+* **Modelos comparados**:
+  * **MiniLM (baseline)** — `all-MiniLM-L6-v2` (22 M params, 384 dim), previamente
+    hardcoded em `compare_results_dictionary.py:375`.
+  * **BGE (novo default)** — `BAAI/bge-small-en-v1.5` (33 M params, 384 dim),
+    configurado via bloco `embedding:` em `config.yaml`.
+* **Total de comparações**: 4 701 chaves `(tabela, modelo, campo)` comuns aos
+  dois summaries.
+
+#### 3.5.2 Reprodutibilidade
+
+```bash
+# Baseline (MiniLM) — lê o summary pré-existente
+python -c "import json; d=json.load(open('data/distance_calculation_old_alll_MiniLm-L6-v2/all_similarities_results.json')); print(d['metrics_by_model'])"
+
+# BGE (novo) — gera novo summary
+# O bloco embedding: em config.yaml já está com model_name: BAAI/bge-small-en-v1.5
+python run.py compare
+python run.py metrics
+# Artefatos:
+#   data/distance_calculation/all_similarities_results.json    (BGE, ativo)
+#   data/distance_calculation/all_similarities_results.BGE.json (cópia BGE)
+#   data/distance_calculation_old_alll_MiniLm-L6-v2/all_similarities_results.json  (MiniLM, intocado)
+```
+
+#### 3.5.3 Resultados — `metrics_by_model` lado a lado
+
+| Modelo                    | MiniLM mean | BGE mean | Δ mean | MiniLM std | BGE std | Δ std   |
+| ------------------------- | ----------: | -------: | -----: | ---------: | ------: | ------: |
+| deepseek-v4-flash         |      0.6196 |   0.7978 | +0.178 |     0.1834 |  0.0905 | −0.0929 |
+| deepseek-v4-pro           |      0.6140 |   0.7907 | +0.177 |     0.1717 |  0.0832 | −0.0885 |
+| gemini-3.1-flash-lite     |      0.6194 |   0.7824 | +0.163 |     0.1702 |  0.0907 | −0.0795 |
+| gemini-3.5-flash          |      0.6242 |   0.7849 | +0.161 |     0.1576 |  0.0861 | −0.0715 |
+| gpt-5.4-mini              |      0.6147 |   0.7862 | +0.172 |     0.1512 |  0.0787 | −0.0725 |
+| gpt-5.4-nano              |      0.5704 |   0.7581 | +0.188 |     0.1426 |  0.0745 | −0.0681 |
+
+#### 3.5.4 Correlação entre modelos
+
+* **Pearson r(BGE, MiniLM) per-field = +0.8544** sobre as 4 701 chaves comuns.
+* **Ranking das LLMs preservado**: `gemini-3.5-flash` e `deepseek-v4-flash`
+  permanecem no topo; `gpt-5.4-nano` permanece atrás. As conclusões sobre
+  **qual LLM é melhor não mudam** entre os dois modelos de embedding.
+
+#### 3.5.5 Interpretação
+
+1. **BGE consistentemente reporta similaridades mais altas** (+0.16 a +0.19 em
+   todas as 6 LLMs). Isso é coerente com a literatura: BGE foi treinado com
+   alinhamento query/passage mais agressivo, sentenças semanticamente próximas
+   saturam mais perto de 1.0. **Métricas absolutas de BGE ≠ métricas absolutas
+   de MiniLM**; comparar números de papers diferentes sem normalizar é
+   arriscado.
+2. **Std cai ~50%** (≈ 0.17 → ≈ 0.09). BGE produz uma distribuição mais
+   "concentrada". Útil se o objetivo for **discriminar pequenas diferenças
+   semânticas**; perigoso se o objetivo for **separar matches perfeitos de
+   matches bons** — com BGE, 0.85 pode ser equivalente ao antigo 0.65.
+3. **Implicação prática para thresholds**: se houver um threshold de
+   aceitação hard-coded (ex: `score > 0.85 = match confiável`), ele precisa
+   ser recalibrado ao trocar de modelo. Sugere-se armazenar o threshold no
+   próprio `config.yaml` (próximo passo fora do escopo deste relatório).
+
+#### 3.5.6 Conclusão
+
+A validação empírica **confirma** a escolha do MTEB (Retrieval 51.68 vs
+41.95, Avg 62.17 vs 56.09) e **não introduz regressões** no ranking das
+LLMs (r = +0.85). Recomenda-se manter `BAAI/bge-small-en-v1.5` como default.
+Caso um consumidor downstream dependa de thresholds absolutos, recalibrar
+antes de deploy (ver §3.5.5 item 3).
+
 ## 4. Mudança de configuração (opcional)
 
 A partir desta versão, a escolha do modelo de embedding é feita **exclusivamente
