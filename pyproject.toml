@@ -1,7 +1,7 @@
 [project]
-name = "schema_matching"
+name = "autometa"
 version = "0.2.0"
-description = ""
+description = "AutoMeta: automated generation and evaluation of data dictionaries and schema matching with LLMs."
 authors = [
     {name = "Leandro Mendes Ferreira"}
 ]

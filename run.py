@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Orchestrator for the schema_generator pipeline.
+"""Orchestrator for the AutoMeta pipeline.
 
 This is the single entry point that wires every step of the pipeline together:
 
@@ -210,7 +210,7 @@ def cmd_pipeline(args) -> int:
 def main() -> int:
     p = argparse.ArgumentParser(
         prog="run.py",
-        description="Schema generator orchestrator. Wraps every step of the pipeline.",
+        description="AutoMeta orchestrator. Wraps every step of the pipeline.",
     )
     sub = p.add_subparsers(dest="cmd", required=True)
 

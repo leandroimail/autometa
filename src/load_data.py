@@ -17,8 +17,8 @@ def derive_table_name(file_path):
 
 def main():
     """Main function to load data into DuckDB."""
-    db_path = './.db/schema_mathcing.db'
-    db_name = 'schema_mathcing'
+    db_path = './.db/schema_matching.db'
+    db_name = 'schema_matching'
     schema_name = 'main'
     script_dir = './.script/01-SQL-DDL'
     
@@ -92,7 +92,7 @@ def run_all():
         This document describes the SQL DDL scripts generated to load data into the '{db_name}' database.
 
         ## Warnings
-        - The database name seems to have a typo: 'schema_mathcing' instead of 'schema_matching'.
+        - None.
 
         ## Tables
     """
@@ -105,8 +105,8 @@ def run_all():
     # Run all script
     run_all_sh = f"""
 #!/bin/bash
-duckdb ./.db/schema_mathcing.db < ./.script/01-SQL-DDL/01_sql_ddl.sql
-duckdb ./.db/schema_mathcing.db < ./.script/01-SQL-DDL/03_verify.sql
+duckdb ./.db/schema_matching.db < ./.script/01-SQL-DDL/01_sql_ddl.sql
+duckdb ./.db/schema_matching.db < ./.script/01-SQL-DDL/03_verify.sql
     """
     with open(os.path.join(script_dir, 'run_all.sh'), 'w') as f:
         f.write(run_all_sh)

@@ -1,4 +1,4 @@
-# Schema Matching Project
+# AutoMeta
 
 ## Overview
 

@@ -1,10 +1,10 @@
-# Schema Generator: Automated Generation and Evaluation of Data Dictionaries and Schema Matching with LLMs
+# AutoMeta: Automated Generation and Evaluation of Data Dictionaries and Schema Matching with LLMs
 
-> **Technical/scientific article for the `schema_generator` project.**
+> **Technical/scientific article for the `AutoMeta` project.**
 > Documents the architecture, processes, sequences, APIs/interfaces, usage, and the
 > benchmark results obtained on the BIRD Mini-Dev corpus.
 > Generated June 2026. Diagrams in Mermaid (exported to PNG) and charts in matplotlib are
-> embedded throughout. (Portuguese version: [`SCHEMA_GENERATOR_ARTICLE.md`](SCHEMA_GENERATOR_ARTICLE.md).)
+> embedded throughout. (Portuguese version: [`AUTOMETA_ARTICLE.md`](AUTOMETA_ARTICLE.md).)
 
 ---
 
@@ -13,7 +13,7 @@
 Integrating data between normalized relational models (3NF) and multidimensional analytical
 models (*star schema*) requires aligning schemas that often use different names, types, and
 structures for equivalent concepts. This alignment — *schema matching* — is traditionally
-manual, costly, and error-prone. This work presents **`schema_generator`**, a modular,
+manual, costly, and error-prone. This work presents **`AutoMeta`**, a modular,
 prompt-driven framework that automates two related tasks: **(i)** generating semantic **data
 dictionaries** from statistical profiles and table samples, using multiple *Large Language
 Models* (LLMs); and **(ii)** ***schema matching*** between relational models and *star
@@ -45,7 +45,7 @@ matching*: mapping source fields to target fields when:
 - correspondence is **semantic**, not merely lexical — business names and meanings diverge
   between operational and analytical models.
 
-`schema_generator` attacks this problem with a **prompt-driven** approach: LLMs are guided by
+`AutoMeta` attacks this problem with a **prompt-driven** approach: LLMs are guided by
 detailed instructions to **(a)** semantically describe each table and field (data dictionary)
 and **(b)** produce auditable source → target mappings, including the required transformations
 and full coverage of target fields (supporting 1→N, N→1, and composite mappings).
@@ -61,7 +61,7 @@ focuses the model on field meaning.
 The system is organized into decoupled layers, each materialized by a script in `src/` and
 orchestrated by `run.py`. Figure 1 shows the component view.
 
-![Figure 1 — schema_generator component architecture](images/diag_architecture.png)
+![Figure 1 — AutoMeta component architecture](images/diag_architecture.png)
 **Figure 1.** Component architecture. The BIRD sources (SQLite + CSV) are transformed by the
 bootstrap layer into artifacts (base dictionaries, samples, profiles, manifest); the
 generation layer uses LLMs to enrich dictionaries; the evaluation layer compares the result
@@ -567,7 +567,7 @@ summaries above; the diagrams in Figures 1–6 are Mermaid sources rendered to P
 
 ## 11. Conclusion
 
-`schema_generator` demonstrates that prompt-guided LLMs fed with *profiles + samples* produce
+`AutoMeta` demonstrates that prompt-guided LLMs fed with *profiles + samples* produce
 high-quality semantic data dictionaries (median similarity ≈ 0.79–0.81 against a curated
 ground truth), with a reproducible, auditable, configuration-driven pipeline. The main
 practical conclusion is the **language-model ranking**: among the 6 LLMs evaluated,

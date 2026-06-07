@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Project rebrand to AutoMeta.** The project is now named `AutoMeta` across
+  the codebase: `pyproject.toml` `name` is now `autometa` (with a non-empty
+  `description`), the README title is `# AutoMeta`, and the technical articles
+  have been renamed to `reports/AUTOMETA_ARTICLE.md` and
+  `reports/AUTOMETA_ARTICLE.en.md` (with cross-references updated). The
+  underlying capabilities (data dictionary generation, schema matching,
+  similarity evaluation) are unchanged.
+
+### Fixed
+- **Typo `schema_mathcing` in `src/load_data.py`.** Renamed the local DuckDB
+  database from `schema_mathcing` to `schema_matching` (file path, `db_name`,
+  shell snippets, and the warning comment in the generated DDL doc).
+
 ### Added
 - **Configurable embedding model.** The `sentence-transformers` model used by
   `src/compare_results_dictionary.py` is now driven by a new `embedding:` block

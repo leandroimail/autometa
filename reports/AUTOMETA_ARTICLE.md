@@ -1,11 +1,11 @@
-# Schema Generator: Geração e Avaliação Automática de Dicionários de Dados e *Schema Matching* com LLMs
+# AutoMeta: Geração e Avaliação Automática de Dicionários de Dados e *Schema Matching* com LLMs
 
-> **Artigo técnico-científico do projeto `schema_generator`.**
+> **Artigo técnico-científico do projeto `AutoMeta`.**
 > Documenta arquitetura, processos, sequências, APIs/interfaces, modo de uso e os
 > resultados do benchmark executado sobre o corpus BIRD Mini-Dev.
 > Gerado em junho/2026. Diagramas em Mermaid (exportados para PNG) e gráficos em
 > matplotlib estão embutidos ao longo do texto.
-> English version: [`SCHEMA_GENERATOR_ARTICLE.en.md`](SCHEMA_GENERATOR_ARTICLE.en.md).
+> English version: [`AUTOMETA_ARTICLE.en.md`](AUTOMETA_ARTICLE.en.md).
 
 ---
 
@@ -15,7 +15,7 @@ A integração de dados entre modelos relacionais normalizados (3FN) e modelos a
 multidimensionais (*star schema*) exige o alinhamento de esquemas que frequentemente usam
 nomes, tipos e estruturas distintos para conceitos equivalentes. Esse alinhamento — o
 *schema matching* — é tradicionalmente manual, custoso e propenso a erro. Este trabalho
-apresenta o **`schema_generator`**, um *framework* modular e dirigido por *prompts* que
+apresenta o **`AutoMeta`**, um *framework* modular e dirigido por *prompts* que
 automatiza duas tarefas correlatas: **(i)** a geração de **dicionários de dados** semânticos
 a partir de perfis estatísticos e amostras de tabelas, usando múltiplos *Large Language
 Models* (LLMs); e **(ii)** o ***schema matching*** entre modelos relacionais e *star schemas*.
@@ -48,7 +48,7 @@ em *star schema*) é um problema recorrente em engenharia de dados. O desafio ce
 - a correspondência é **semântica**, não meramente lexical — nomes e significados de negócio
   divergem entre modelos operacionais e analíticos.
 
-O `schema_generator` ataca esse problema com uma abordagem **dirigida por *prompts***: LLMs
+O `AutoMeta` ataca esse problema com uma abordagem **dirigida por *prompts***: LLMs
 são guiados por instruções detalhadas para **(a)** descrever semanticamente cada tabela e
 campo (dicionário de dados) e **(b)** produzir mapeamentos auditáveis origem → destino,
 incluindo as transformações necessárias e cobertura total dos campos de destino (suportando
@@ -65,7 +65,7 @@ volume de *tokens* e foca o modelo no significado dos campos.
 O sistema é organizado em camadas desacopladas, cada uma materializada por um script em
 `src/` e orquestrada por `run.py`. A Figura 1 apresenta a visão de componentes.
 
-![Figura 1 — Arquitetura de componentes do schema_generator](images/diag_architecture.png)
+![Figura 1 — Arquitetura de componentes do AutoMeta](images/diag_architecture.png)
 **Figura 1.** Arquitetura de componentes. As fontes BIRD (SQLite + CSV) são transformadas
 pela camada de *bootstrap* em artefatos (dicionários-base, *samples*, perfis, *manifest*);
 a camada de geração usa LLMs para enriquecer dicionários; a camada de avaliação compara o
@@ -576,7 +576,7 @@ para PNG em `reports/images/`.
 
 ## 11. Conclusão
 
-O `schema_generator` demonstra que LLMs guiados por *prompts* e alimentados por *perfis +
+O `AutoMeta` demonstra que LLMs guiados por *prompts* e alimentados por *perfis +
 amostras* produzem dicionários de dados semânticos de alta qualidade (similaridade mediana
 ≈ 0,79–0,81 contra um *ground truth* curado), com um pipeline reprodutível, auditável e
 dirigido por configuração. A principal conclusão prática é o **ranking dos modelos de
